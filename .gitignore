@@ -1,0 +1,35 @@
+# Secretos: la API key vive solo en .env (ver .env.example)
+.env
+.env.*
+!.env.example
+
+# Entornos virtuales
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Herramientas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Caché en disco de tasas de cambio (se regenera desde la API)
+.cache/
+
+# Salidas opcionales del analizador (ANALISIS.md sí se versiona)
+resultados.json
+resultados.csv
+
+# Editores / SO
+.idea/
+.vscode/
+.DS_Store

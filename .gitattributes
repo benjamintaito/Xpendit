@@ -1,0 +1,19 @@
+# Fin de línea LF en el repositorio y en cada checkout, también en Windows (donde Git suele
+# venir con core.autocrlf=true). Así ANALISIS.md y el CSV no aparecen modificados al clonar y
+# regenerar el reporte produce exactamente los mismos bytes en cualquier sistema.
+* text=auto eol=lf
+
+*.py text diff=python
+*.md text diff=markdown
+*.csv text
+*.json text
+*.toml text
+*.txt text
+*.yml text
+.env.example text
+.gitattributes text
+.gitignore text
+
+*.png binary
+*.jpg binary
+*.gif binary

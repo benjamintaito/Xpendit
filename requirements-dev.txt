@@ -1,0 +1,9 @@
+# Dependencias de desarrollo: ejecución + pruebas + calidad.
+-r requirements.txt
+# Instala el propio paquete (src/xpendit) en modo editable para poder usar `python -m xpendit`.
+-e .
+pytest>=8
+pytest-cov>=5
+ruff>=0.6
+mypy>=1.10
+types-requests

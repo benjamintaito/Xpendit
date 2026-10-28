@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xpendit"
+version = "0.1.0"
+description = "Motor de reglas de gastos, cliente de tasas de cambio y analizador de lotes (desafío técnico Xpendit)."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Benjamín Taito" }]
+dependencies = [
+    "requests>=2.32,<3",
+    "python-dotenv>=1.0,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "types-requests",
+]
+
+[project.scripts]
+xpendit = "xpendit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+# Con PYTHONWARNDEFAULTENCODING=1 (así corre la CI), un open()/read_text()/write_text() sin
+# encoding= hace fallar el test: en Windows usaría cp1252 en vez de UTF-8.
+filterwarnings = ["error::EncodingWarning"]
+
+[tool.coverage.run]
+source = ["xpendit"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.format]
+# Los bloques de código de README/docs están escritos para leerse, no para el formateador.
+exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+# RUF001/RUF002/RUF003: el código y los textos están en español (tildes, «…»), no son caracteres ambiguos.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tareas.py"]

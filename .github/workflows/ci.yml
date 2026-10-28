@@ -1,0 +1,112 @@
+# Lint y tipos en Linux; tests y la CLI de punta a punta en Linux, Windows y macOS con
+# Python 3.12 (la versión mínima soportada) y 3.13.
+# No usa secretos ni la API key: los tests no salen a Internet y la CLI corre en --offline.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  calidad:
+    name: Lint y tipos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+
+      - name: Tipos (mypy --strict)
+        run: python -m mypy
+
+  tests:
+    name: Tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.12", "3.13"]
+    env:
+      # Un open()/read_text()/write_text() sin encoding= hace fallar los tests (pyproject.toml).
+      PYTHONWARNDEFAULTENCODING: "1"
+    defaults:
+      run:
+        shell: bash  # también en Windows (Git Bash), para usar los mismos comandos
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: El checkout tiene fin de línea LF (.gitattributes)
+        run: |
+          if git ls-files --eol | grep 'w/crlf'; then
+            echo "Archivos con CRLF en el checkout: revisar .gitattributes"; exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Tests con cobertura (vía tareas.py)
+        run: python tareas.py cov
+
+      - name: Analizador de punta a punta (--offline)
+        run: |
+          python -m xpendit analizar data/gastos_historicos.csv --offline \
+            --fecha-referencia 2026-10-26 --salida "$RUNNER_TEMP/ANALISIS.md" \
+            --json "$RUNNER_TEMP/resultados.json" --csv-salida "$RUNNER_TEMP/resultados.csv"
+          grep -q '| \*\*RECHAZADO\*\* | 25 |' "$RUNNER_TEMP/ANALISIS.md"
+          if grep -q $'\r' "$RUNNER_TEMP/ANALISIS.md"; then echo "ANALISIS.md con CRLF"; exit 1; fi
+
+      - name: Analizador con una consola cp1252 (como una consola Windows antigua)
+        env:
+          PYTHONIOENCODING: cp1252
+        run: |
+          python -m xpendit analizar data/gastos_historicos.csv --offline \
+            --fecha-referencia 2026-10-26 --salida "$RUNNER_TEMP/ANALISIS-cp1252.md"
+
+      # El comando (con sus rutas) queda escrito en el reporte: escrito con "\" en PowerShell
+      # y con "/" en bash, los dos reportes deben ser idénticos byte a byte.
+      - name: PowerShell con rutas de Windows (data\gastos_historicos.csv)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force salida-ci | Out-Null
+          python -m xpendit analizar data\gastos_historicos.csv --offline `
+            --fecha-referencia 2026-10-26 --salida salida-ci\ANALISIS.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item salida-ci\ANALISIS.md "$env:RUNNER_TEMP\ANALISIS-pwsh.md"
+          python tareas.py --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: El reporte de PowerShell es idéntico al de bash
+        if: runner.os == 'Windows'
+        run: |
+          mkdir -p salida-ci
+          python -m xpendit analizar data/gastos_historicos.csv --offline \
+            --fecha-referencia 2026-10-26 --salida salida-ci/ANALISIS.md
+          cmp salida-ci/ANALISIS.md "$RUNNER_TEMP/ANALISIS-pwsh.md"
+          rm -r salida-ci
+
+      - name: Nada versionado cambió
+        run: git diff --exit-code
